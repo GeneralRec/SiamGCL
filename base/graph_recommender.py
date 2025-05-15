@@ -1,9 +1,9 @@
 from base.recommender import Recommender
 from data.ui_graph import Interaction
-from util.algorithm import find_k_largest
 from time import strftime, localtime, time
 from data.loader import FileIO
 from os.path import abspath
+import heapq
 from util.evaluation import ranking_evaluation
 import sys
 
@@ -33,6 +33,19 @@ class GraphRecommender(Recommender):
     def predict(self, u):
         pass
 
+    def find_k_largest(self, K, candidates):
+        n_candidates = []
+        for iid, score in enumerate(candidates[:K]):
+            n_candidates.append((score, iid))
+        heapq.heapify(n_candidates)
+        for iid, score in enumerate(candidates[K:]):
+            if score > n_candidates[0][0]:
+                heapq.heapreplace(n_candidates, (score, iid + K))
+        n_candidates.sort(key=lambda d: d[0], reverse=True)
+        ids = [item[1] for item in n_candidates]
+        k_largest_scores = [item[0] for item in n_candidates]
+        return ids, k_largest_scores
+
     def test(self):
         def process_bar(num, total):
             rate = float(num) / total
@@ -50,7 +63,7 @@ class GraphRecommender(Recommender):
             rated_list, li = self.data.user_rated(user)
             for item in rated_list:
                 candidates[self.data.item[item]] = -10e8
-            ids, scores = find_k_largest(self.max_N, candidates)
+            ids, scores = self.find_k_largest(self.max_N, candidates)
             item_names = [self.data.id2item[iid] for iid in ids]
             rec_list[user] = list(zip(item_names, scores))
             if i % 1000 == 0:
